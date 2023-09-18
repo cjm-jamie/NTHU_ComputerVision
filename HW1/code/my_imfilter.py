@@ -43,6 +43,33 @@ def my_imfilter(image, imfilter):
 
     output = np.zeros_like(image)
     
+    R = image[:,:,0]
+    G = image[:,:,1]
+    B = image[:,:,2]
+
+    H_image = image.shape[0]
+    W_image = image.shape[1]
+    H_imfilter = imfilter.shape[0]
+    W_imfilter = imfilter.shape[1]
+
+    # padding size according to kernal, processing boundary issue of the image
+    v_offset = (H_imfilter-1) // 2
+    h_offset = (W_imfilter-1) // 2
+
+    # padding three channel with vertical and horizontal offset
+    R_pad = np.pad(R, (v_offset, h_offset), mode='constant')
+    G_pad = np.pad(G, (v_offset, h_offset), mode='constant')
+    B_pad = np.pad(B, (v_offset, h_offset), mode='constant')
+
+    # do convolution for loop for each pixel in the image
+    for h in range(H_image):
+        for w in range(W_image):
+            output[h][w][0] = np.sum(np.multiply(R_pad[h:h+H_imfilter, w:w+W_imfilter], imfilter))
+            output[h][w][1] = np.sum(np.multiply(G_pad[h:h+H_imfilter, w:w+W_imfilter], imfilter))
+            output[h][w][2] = np.sum(np.multiply(B_pad[h:h+H_imfilter, w:w+W_imfilter], imfilter))
+
+    # print("I'm here!")
+
     # =============================== END OF YOUR CODE ================================
 
     # Uncomment if you want to simply call scipy.ndimage.filters.correlate so you can

@@ -44,7 +44,7 @@ def main():
     # Remove the high frequencies from image1 by blurring it. The amount of 
     # blur that works best will vary with different image pairs             
     # =======================================================================
-    low_frequencies = None        # You need to modify here
+    low_frequencies = my_imfilter(image1, gaussian_filter)        # You need to modify here
 
 
     # ==========================================================================
@@ -52,13 +52,13 @@ def main():
     # subtract a blurred version of image2 from the original version of image2.
     # This will give you an image centered at zero with negative values.       
     # ==========================================================================
-    high_frequencies = None       # You need to modify here
+    high_frequencies = image2 - my_imfilter(image2, gaussian_filter)       # You need to modify here
 
 
     # ==========================================================================
     # Combine the high frequencies and low frequencies                         
     # ==========================================================================
-    hybrid_image = None           # You need to modify here
+    hybrid_image = normalize(low_frequencies + high_frequencies)           # You need to modify here
 
 
 
