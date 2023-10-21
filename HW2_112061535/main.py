@@ -66,11 +66,14 @@ def linear_estimate_3d_point(image_points, camera_matrices):
 
     # Create the DLT matrix A
     # each camera will have 2 eqns
+    # 4 for homogeneous coordinates of a 3D point (X, Y, Z, W)
     A = np.zeros((2 * num_cameras, 4))
     for i in range(num_cameras):
         M = camera_matrices[i]
         u, v = image_points[i]
+        # v * Mi^3 − Mi^2
         A[2 * i, :] = v * M[2, :] - M[1, :]
+        # Mi^1 - u * Mi^3
         A[2 * i + 1, :] = M[0, :] - u * M[2, :]
 
     # Solve for the 3D point using SVD
