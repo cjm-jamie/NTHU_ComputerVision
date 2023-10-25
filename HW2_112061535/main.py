@@ -28,7 +28,6 @@ def estimate_initial_RT(E):
     Z = np.array([[0, 1, 0], [-1, 0, 0], [0, 0, 0]])
     W = np.array([[0, -1, 0], [1, 0, 0], [0, 0, 1]])
 
-    M = U @ Z @ U.T
     Q1 = U @ W @ Vt
     Q2 = U @ W.T @ Vt
     R1 = np.linalg.det(Q1) * Q1
@@ -60,8 +59,6 @@ Returns:
 '''
 def linear_estimate_3d_point(image_points, camera_matrices):
     # TODO: Implement this method!
-    # print(f'M = {camera_matrices}, shape = {camera_matrices.shape}')
-    # print(f'p = {image_points}, shape = {image_points.shape}')
     num_cameras = camera_matrices.shape[0]
 
     # Create the DLT matrix A
@@ -96,7 +93,25 @@ Returns:
 '''
 def reprojection_error(point_3d, image_points, camera_matrices):
     # TODO: Implement this method!
-    raise Exception('Not Implemented Error')
+    # print(point_3d.shape)
+    # print(image_points.shape)
+    # print(camera_matrices.shape)
+    num_cameras = camera_matrices.shape[0]
+    error = np.zeros(2 * num_cameras)  # Initialize the error vector.
+    P = np.append(point_3d, 1)
+
+    for i in range(num_cameras):
+        Mi = camera_matrices[i]
+        yi = np.dot(Mi, P) # Project 3D point P into image coordinates.
+        p_prime_x, p_prime_y = np.array([yi[0], yi[1]]) / yi[2]
+
+        ui, vi = image_points[i]
+
+        # Compute the reprojection error for both u and v.
+        error[2*i] = p_prime_x - ui
+        error[2*i + 1] = p_prime_y - vi
+
+    return np.array(error)
 
 '''
 JACOBIAN given a 3D point and its corresponding points in the image
@@ -109,7 +124,20 @@ Returns:
 '''
 def jacobian(point_3d, camera_matrices):
     # TODO: Implement this method!
-    raise Exception('Not Implemented Error')
+    P = np.append(point_3d, 1)
+    # print("P.shape is ", P.shape)
+    num_cameras = camera_matrices.shape[0]
+    # jac = np.zeros((2 * num_cameras, 3))  # Initialize the Jacobian matrix.
+    jac = []
+
+    for i in range(num_cameras):
+        Mi = camera_matrices[i]
+        yi = np.dot(Mi, P)
+
+        jac.append((Mi[0, :3] * yi[2] - Mi[2, :3] * yi[0]) / yi[2] ** 2)
+        jac.append((Mi[1, :3] * yi[2] - Mi[2, :3] * yi[1]) / yi[2] ** 2)
+
+    return np.array(jac)
 
 '''
 NONLINEAR_ESTIMATE_3D_POINT given a corresponding points in different images,
@@ -122,8 +150,14 @@ Returns:
 '''
 def nonlinear_estimate_3d_point(image_points, camera_matrices):
     # TODO: Implement this method!
-    raise Exception('Not Implemented Error')
+    P = linear_estimate_3d_point(image_points, camera_matrices)
+    iteration_time = 10
 
+    for _ in range(iteration_time):
+        J = jacobian(P, camera_matrices)
+        e = reprojection_error(P, image_points, camera_matrices)
+        P = P - np.dot(np.dot(np.linalg.inv(np.dot(J.T, J)), J.T), e)
+    return P
 '''
 ESTIMATE_RT_FROM_E from the Essential Matrix, we can compute  the relative RT 
 between the two cameras
@@ -137,7 +171,38 @@ Returns:
 '''
 def estimate_RT_from_E(E, image_points, K):
     # TODO: Implement this method!
-    raise Exception('Not Implemented Error')
+    init_RT = estimate_initial_RT(E)       # (4, 3, 4)
+    # updates the camera matrix for the first camera 
+    matrices_1 = np.dot(K, np.hstack((np.eye(3), np.zeros((3,1)))))    # 3 * 4
+
+    max_positive_z_count = 0
+    best_RT = None
+
+    camera_matrices = np.array((matrices_1, np.zeros(matrices_1.shape)))
+    for i in range(init_RT.shape[0]):
+        # updates the camera matrix for the second camera 
+        camera_matrices[1] = np.dot(K, init_RT[i])
+        # image_points.shape[0] represent pt_num for each camera system
+        for j in range(image_points.shape[0]):
+            cnt = 0
+            nonlinear_pt = nonlinear_estimate_3d_point(image_points[j], camera_matrices)
+            # homogeneous coordinate
+            nonlinear_pt = np.append(nonlinear_pt, 1)
+
+            # camera matrix for second camera
+            matrices_2 = np.vstack((init_RT[i], [0, 0, 0, 1]))
+
+            projected_point = np.dot(matrices_2, np.array((nonlinear_pt[0], nonlinear_pt[1], nonlinear_pt[2], 1)).T)
+            projected_point /= projected_point[3]
+            projected_point = projected_point[:-1]
+            # cnt = points which have positive z-coordinate for both images
+            if nonlinear_pt[2] > 0 and projected_point[2] > 0:
+                cnt += 1
+        if cnt > max_positive_z_count:
+            max_positive_z_count = cnt
+            best_RT = init_RT[i]
+
+    return best_RT
 
 if __name__ == '__main__':
     run_pipeline = True
